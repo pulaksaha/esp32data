@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature & Humidity Graph</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        canvas {
+            max-width: 90%;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Temperature & Humidity Data</h1>
+    <canvas id="tempChart"></canvas>
+    <canvas id="humidityChart"></canvas>
+
+    <script>
+        // Replace with your Google Sheets API key and spreadsheet details
+        const API_KEY = 'YOUR_GOOGLE_SHEETS_API_KEY';
+        const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID';
+        const RANGE = 'Sheet1!A:C'; // Assuming columns: Date, Temperature, Humidity
+
+        async function fetchData() {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.values;
+        }
+
+        function createChart(ctx, labels, data, label, color) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: color + '33',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: label
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function renderCharts() {
+            const rawData = await fetchData();
+            const labels = rawData.slice(1).map(row => row[0]); // Dates
+            const temperatures = rawData.slice(1).map(row => parseFloat(row[1])); // Temperature
+            const humidity = rawData.slice(1).map(row => parseFloat(row[2])); // Humidity
+
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            createChart(tempCtx, labels, temperatures, 'Temperature (°C)', 'rgba(255, 99, 132)');
+
+            const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+            createChart(humidityCtx, labels, humidity, 'Humidity (%)', 'rgba(54, 162, 235)');
+        }
+
+        renderCharts();
+    </script>
+</body>
+</html>
