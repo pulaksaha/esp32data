@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temperature & Humidity Forecast</title>
+    <title>Weather Forecast</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -12,7 +12,7 @@
             font-family: Arial, sans-serif;
             text-align: center;
             margin: 20px;
-            background: url('https://images.pexels.com/photos/1431822/pexels-photo-1431822.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2') no-repeat center center fixed;
+            background: url('https://images.pexels.com/photos/531756/pexels-photo-531756.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2') no-repeat center center fixed;
             background-size: cover;
         }
         .container {
@@ -20,19 +20,28 @@
             margin: 0 auto;
             color: #fff;
         }
-        canvas {
-            max-width: 90%;
-            margin: 20px auto;
+        h1, h3 {
+            margin-bottom: 20px;
+        }
+        .weather-header {
+            font-size: 28px;
+            margin-top: 10px;
+        }
+        .clock {
+            font-size: 20px;
+            margin-top: 10px;
+            color: #fff;
         }
         .btn {
             margin: 10px;
         }
-        table {
-            width: 100%;
+        .weather-table {
             margin-top: 30px;
             color: #fff;
+            border-collapse: collapse;
+            width: 100%;
         }
-        th, td {
+        .weather-table th, .weather-table td {
             padding: 10px;
             border: 1px solid #fff;
             text-align: center;
@@ -49,32 +58,27 @@
 <body>
 
 <div class="container">
-    <h1>Live Temperature & Humidity Data</h1>
-    
+    <h1>Weather Forecast for Bengaluru</h1>
+
+    <div class="weather-header">
+        <h3>Partly Cloudy | 19°C</h3>
+        <div class="clock" id="clock">Loading Clock...</div>
+    </div>
+
     <div class="weather-prediction">
         <h3>Predicted Temperature for Tomorrow: <span id="predictedTemp">Loading...</span>°C</h3>
     </div>
 
-    <div>
-        <button id="tempButton" class="btn btn-primary">Temperature</button>
-        <button id="humidityButton" class="btn btn-secondary">Humidity</button>
-    </div>
-
-    <div id="chartContainer">
-        <canvas id="tempChart"></canvas>
-        <canvas id="humidityChart" style="display: none;"></canvas>
-    </div>
-
-    <h3>Temperature and Humidity by Time</h3>
-    <table id="dataTable">
+    <h3>Hourly Forecast</h3>
+    <table class="weather-table">
         <thead>
             <tr>
                 <th>Time</th>
                 <th>Temperature (°C)</th>
-                <th>Humidity (%)</th>
+                <th>Condition</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="forecastTable">
             <!-- Data will be populated here -->
         </tbody>
     </table>
@@ -85,120 +89,48 @@
 </div>
 
 <script>
-    const SPREADSHEET_ID = '1CcYFIocYbQrIT0qkWMa0nN_gf1x8dCkx0vUbBUbYpkk'; // Your Spreadsheet ID
-    const API_KEY = 'AIzaSyApWSeQlNsHd6cFomAjdbc0v6iruqaOZYc'; // Replace with your Google API Key
-    const SHEET_NAME = 'Sheet1'; // Replace with your sheet name
-    const DATA_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${API_KEY}`;
+    // Fetch Data for Hourly Forecast
+    const weatherData = [
+        { time: '1:00 AM', temp: 19, condition: 'Partly Cloudy' },
+        { time: '4:00 AM', temp: 18, condition: 'Clear' },
+        { time: '7:00 AM', temp: 18, condition: 'Clear' },
+        { time: '10:00 AM', temp: 22, condition: 'Sunny' },
+        { time: '1:00 PM', temp: 26, condition: 'Sunny' },
+        { time: '4:00 PM', temp: 26, condition: 'Partly Cloudy' },
+        { time: '7:00 PM', temp: 22, condition: 'Clear' },
+        { time: '10:00 PM', temp: 20, condition: 'Clear' },
+    ];
 
-    async function fetchData() {
-        try {
-            const response = await fetch(DATA_URL);
-            const result = await response.json();
-            const rows = result.values;
-
-            const labels = rows.slice(1).map(row => row[0]); // Dates
-            const temperatures = rows.slice(1).map(row => parseFloat(row[1])); // Temperatures
-            const humidity = rows.slice(1).map(row => parseFloat(row[2])); // Humidity
-
-            return { labels, temperatures, humidity };
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            return { labels: [], temperatures: [], humidity: [] };
-        }
-    }
-
-    function createChart(ctx, labels, data, label, color) {
-        return new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: label,
-                    data: data,
-                    borderColor: color,
-                    backgroundColor: color + '33',
-                    fill: true,
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: label
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    function updateTable(labels, temperatures, humidity) {
-        const tableBody = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
-        tableBody.innerHTML = ''; // Clear previous rows
-
-        labels.forEach((label, index) => {
-            const row = tableBody.insertRow();
+    // Populate Hourly Forecast Table
+    function updateForecastTable() {
+        const forecastTable = document.getElementById('forecastTable');
+        weatherData.forEach((data) => {
+            const row = forecastTable.insertRow();
             const timeCell = row.insertCell(0);
             const tempCell = row.insertCell(1);
-            const humidityCell = row.insertCell(2);
-
-            timeCell.textContent = label;
-            tempCell.textContent = temperatures[index] + '°C';
-            humidityCell.textContent = humidity[index] + '%';
+            const conditionCell = row.insertCell(2);
+            
+            timeCell.textContent = data.time;
+            tempCell.textContent = data.temp + '°C';
+            conditionCell.textContent = data.condition;
         });
     }
 
+    // Predict Tomorrow's Temperature
     function predictTemperature() {
-        // Dummy prediction logic: just take the average of the last 7 days' temperatures
-        fetchData().then(({ labels, temperatures, humidity }) => {
-            const last7Temps = temperatures.slice(-7);
-            const predictedTemp = (last7Temps.reduce((acc, temp) => acc + temp, 0) / last7Temps.length).toFixed(2);
-            document.getElementById('predictedTemp').textContent = predictedTemp;
-        });
+        // Dummy prediction logic: just take the average of the last 7 hours' temperatures
+        const last7Temps = weatherData.map(data => data.temp);
+        const predictedTemp = (last7Temps.reduce((acc, temp) => acc + temp, 0) / last7Temps.length).toFixed(2);
+        document.getElementById('predictedTemp').textContent = predictedTemp;
     }
 
-    async function renderCharts() {
-        const { labels, temperatures, humidity } = await fetchData();
-
-        if (labels.length === 0) {
-            alert('No data available to display!');
-            return;
-        }
-
-        const tempCtx = document.getElementById('tempChart').getContext('2d');
-        const humidityCtx = document.getElementById('humidityChart').getContext('2d');
-
-        // Create both charts
-        const tempChart = createChart(tempCtx, labels, temperatures, 'Temperature (°C)', 'rgba(255, 99, 132)');
-        const humidityChart = createChart(humidityCtx, labels, humidity, 'Humidity (%)', 'rgba(54, 162, 235)');
-
-        // Update the table with temperature and humidity data
-        updateTable(labels, temperatures, humidity);
-
-        // Show/hide charts based on the selected button
-        document.getElementById('tempButton').onclick = () => {
-            document.getElementById('tempChart').style.display = 'block';
-            document.getElementById('humidityChart').style.display = 'none';
-        };
-        document.getElementById('humidityButton').onclick = () => {
-            document.getElementById('humidityChart').style.display = 'block';
-            document.getElementById('tempChart').style.display = 'none';
-        };
+    // Update Clock
+    function updateClock() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
     }
 
     // Initialize Calendar
@@ -211,8 +143,10 @@
     });
 
     // Run initial functions
-    renderCharts();
+    updateForecastTable();
     predictTemperature();
+    setInterval(updateClock, 1000);  // Update clock every second
+
 </script>
 
 </body>
