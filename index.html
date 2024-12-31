@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: url('https://source.unsplash.com/1600x900/?weather') no-repeat center center fixed;
+            background: url('https://img.freepik.com/free-photo/modern-city-sky-full-dark-clouds_181624-16789.jpg?t=st=1735531954~exp=1735535554~hmac=d0d20d07f2deb774c798635b796aac92e629f7a91710dc21ad1dcdf1e8217bd0&w=1380') no-repeat center center fixed;
             background-size: cover;
             color: white;
             margin: 0;
@@ -23,7 +23,7 @@
             margin: 20px auto;
         }
         canvas {
-            max-width: 100%;
+            width: 100%;
             margin: 20px auto;
         }
         table {
@@ -110,13 +110,25 @@
                             title: {
                                 display: true,
                                 text: 'Date & Time'
-                            }
+                            },
+                        ticks: {
+                        color: 'yellow', // Optional: Set the y-axis labels to white or any color
+                    },
+                    grid: {
+                        color: 'grey', // Set the x-axis line color
+                    }
                         },
                         y: {
                             title: {
                                 display: true,
                                 text: label
-                            }
+                            },
+                        ticks: {
+                        color: '#8be046', // Optional: Set the y-axis labels to white or any color
+                    },
+                    grid: {
+                        color: 'grey', // Set the x-axis line color
+                    }
                         }
                     }
                 }
