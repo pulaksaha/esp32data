@@ -135,52 +135,79 @@
             });
         }
 
-        async function renderDashboard() {
-            const data = await fetchData();
+            async function fetchData() {
+        try {
+            const response = await fetch(DATA_URL);
+            const result = await response.json();
+            const rows = result.values;
 
-            if (data.length === 0) {
-                alert('No data available to display!');
-                return;
-            }
+            // Filter valid rows and ensure columns are properly parsed
+            return rows.slice(1).map(row => {
+                const dateTime = row[0];
+                const temp = parseFloat(row[2]);
+                const humid = parseFloat(row[3]);
 
-            const labels = data.map(row => row[0]); // Date & Time
-            const temperatures = data.map(row => row[1]); // Temperatures
-            const humidity = data.map(row => row[2]); // Humidity
+                // Return only valid numerical values
+                if (!isNaN(temp) && !isNaN(humid)) {
+                    return [dateTime, temp, humid];
+                }
+                return null;
+            }).filter(row => row !== null);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            return [];
+        }
+    }
 
-            const tempCtx = document.getElementById('tempChart').getContext('2d');
-            createChart(tempCtx, labels, temperatures, 'Temperature (°C)', 'rgba(255, 99, 132)');
+    async function renderDashboard() {
+        const data = await fetchData();
 
-            const humidityCtx = document.getElementById('humidityChart').getContext('2d');
-            createChart(humidityCtx, labels, humidity, 'Humidity (%)', 'rgba(54, 162, 235)');
-
-            const tableBody = document.getElementById('dataTable');
-            tableBody.innerHTML = data.map(row => `
-                <tr>
-                    <td>${row[0]}</td>
-                    <td>${row[1]}°C</td>
-                    <td>${row[2]}%</td>
-                </tr>
-            `).join('');
-
-            const maxTemp = Math.max(...temperatures);
-            const minTemp = Math.min(...temperatures);
-            const avgHumidity = (humidity.reduce((a, b) => a + b, 0) / humidity.length).toFixed(2);
-
-            const summary = document.getElementById('summary');
-            summary.innerText = `
-                Maximum Temperature: ${maxTemp}°C
-                Minimum Temperature: ${minTemp}°C
-                Average Humidity: ${avgHumidity}%
-            `;
+        if (data.length === 0) {
+            alert('No data available to display!');
+            return;
         }
 
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('current-time').innerText = `Current Time: ${now.toLocaleString()}`;
-        }
+        const labels = data.map(row => row[0]); // Date & Time
+        const temperatures = data.map(row => row[1]); // Temperatures
+        const humidity = data.map(row => row[2]); // Humidity
 
-        setInterval(updateClock, 1000); // Update clock every second
-        renderDashboard();
+        // Render Temperature and Humidity Charts
+        const tempCtx = document.getElementById('tempChart').getContext('2d');
+        createChart(tempCtx, labels, temperatures, 'Temperature (°C)', 'rgba(255, 99, 132)');
+
+        const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+        createChart(humidityCtx, labels, humidity, 'Humidity (%)', 'rgba(54, 162, 235)');
+
+        // Render Data Table
+        const tableBody = document.getElementById('dataTable');
+        tableBody.innerHTML = data.map(row => `
+            <tr>
+                <td>${row[0]}</td>
+                <td>${row[1]}°C</td>
+                <td>${row[2]}%</td>
+            </tr>
+        `).join('');
+
+        // Calculate and Display Summary
+        const maxTemp = Math.max(...temperatures);
+        const minTemp = Math.min(...temperatures);
+        const avgHumidity = (humidity.reduce((sum, h) => sum + h, 0) / humidity.length).toFixed(2);
+
+        const summary = document.getElementById('summary');
+        summary.innerHTML = `
+            Maximum Temperature: <b>${maxTemp}°C</b><br>
+            Minimum Temperature: <b>${minTemp}°C</b><br>
+            Average Humidity: <b>${avgHumidity}%</b>
+        `;
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('current-time').innerText = `Current Time: ${now.toLocaleString()}`;
+    }
+
+    setInterval(updateClock, 1000); // Update clock every second
+    renderDashboard();
     </script>
 </body>
 </html>
