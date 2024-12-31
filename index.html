@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: url('https://img.freepik.com/free-photo/modern-city-sky-full-dark-clouds_181624-16789.jpg?t=st=1735531954~exp=1735535554~hmac=d0d20d07f2deb774c798635b796aac92e629f7a91710dc21ad1dcdf1e8217bd0&w=1380') no-repeat center center fixed;
+            background: url('https://img.freepik.com/free-photo/modern-city-sky-full-dark-clouds_181624-16789.jpg') no-repeat center center fixed;
             background-size: cover;
             color: white;
             margin: 0;
@@ -24,12 +24,14 @@
         }
         canvas {
             width: 100%;
+            max-height: 400px;
             margin: 20px auto;
         }
         table {
             margin: 20px auto;
             border-collapse: collapse;
             width: 90%;
+            background: rgba(255, 255, 255, 0.1);
         }
         th, td {
             padding: 10px;
@@ -38,6 +40,27 @@
         }
         th {
             background-color: rgba(255, 255, 255, 0.2);
+        }
+        #data-section {
+            display: none;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .summary {
+            font-size: 18px;
+            margin-top: 20px;
+            text-align: center;
         }
     </style>
 </head>
@@ -48,21 +71,22 @@
         <p id="current-time"></p>
         <canvas id="tempChart"></canvas>
         <canvas id="humidityChart"></canvas>
-        <h2>Daily Data</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Date & Time</th>
-                    <th>Temperature (°C)</th>
-                    <th>Humidity (%)</th>
-                </tr>
-            </thead>
-            <tbody id="dataTable">
-                <!-- Data will be inserted here -->
-            </tbody>
-        </table>
         <h2>Today's Summary</h2>
-        <p id="summary"></p>
+        <div class="summary" id="summary"></div>
+        <button id="toggleTableButton">View Data Table</button>
+        <div id="data-section">
+            <h2>Daily Data</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Temperature (°C)</th>
+                        <th>Humidity (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTable"></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -76,7 +100,7 @@
                 const response = await fetch(DATA_URL);
                 const result = await response.json();
                 const rows = result.values;
-                return rows.slice(1).map(row => [row[0], parseFloat(row[2]), parseFloat(row[3])]); // Extract only Date & Time, Temperature, Humidity
+                return rows.slice(1).map(row => [row[0], parseFloat(row[2]), parseFloat(row[3])]).filter(row => !isNaN(row[1]) && !isNaN(row[2]));
             } catch (error) {
                 console.error('Error fetching data:', error);
                 return [];
@@ -107,107 +131,69 @@
                     },
                     scales: {
                         x: {
-                            title: {
-                                display: true,
-                                text: 'Date & Time'
-                            },
-                        ticks: {
-                        color: 'yellow', // Optional: Set the y-axis labels to white or any color
-                    },
-                    grid: {
-                        color: 'grey', // Set the x-axis line color
-                    }
+                            title: { display: true, text: 'Date & Time' },
+                            ticks: { color: 'yellow' },
+                            grid: { color: 'grey' }
                         },
                         y: {
-                            title: {
-                                display: true,
-                                text: label
-                            },
-                        ticks: {
-                        color: '#8be046', // Optional: Set the y-axis labels to white or any color
-                    },
-                    grid: {
-                        color: 'grey', // Set the x-axis line color
-                    }
+                            title: { display: true, text: label },
+                            ticks: { color: '#8be046' },
+                            grid: { color: 'grey' }
                         }
                     }
                 }
             });
         }
 
-            async function fetchData() {
-        try {
-            const response = await fetch(DATA_URL);
-            const result = await response.json();
-            const rows = result.values;
+        async function renderDashboard() {
+            const data = await fetchData();
+            if (data.length === 0) {
+                alert('No data available to display!');
+                return;
+            }
 
-            // Filter valid rows and ensure columns are properly parsed
-            return rows.slice(1).map(row => {
-                const dateTime = row[0];
-                const temp = parseFloat(row[2]);
-                const humid = parseFloat(row[3]);
+            const labels = data.map(row => row[0]);
+            const temperatures = data.map(row => row[1]);
+            const humidity = data.map(row => row[2]);
 
-                // Return only valid numerical values
-                if (!isNaN(temp) && !isNaN(humid)) {
-                    return [dateTime, temp, humid];
-                }
-                return null;
-            }).filter(row => row !== null);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            return [];
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            createChart(tempCtx, labels, temperatures, 'Temperature (°C)', 'rgba(255, 99, 132)');
+
+            const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+            createChart(humidityCtx, labels, humidity, 'Humidity (%)', 'rgba(54, 162, 235)');
+
+            const tableBody = document.getElementById('dataTable');
+            tableBody.innerHTML = data.map(row => `<tr><td>${row[0]}</td><td>${row[1]}°C</td><td>${row[2]}%</td></tr>`).join('');
+
+            const maxTemp = Math.max(...temperatures);
+            const minTemp = Math.min(...temperatures);
+            const avgHumidity = (humidity.reduce((sum, h) => sum + h, 0) / humidity.length).toFixed(2);
+
+            document.getElementById('summary').innerHTML = `
+                Maximum Temperature: <b>${maxTemp}°C</b><br>
+                Minimum Temperature: <b>${minTemp}°C</b><br>
+                Average Humidity: <b>${avgHumidity}%</b>
+            `;
         }
-    }
 
-    async function renderDashboard() {
-        const data = await fetchData();
-
-        if (data.length === 0) {
-            alert('No data available to display!');
-            return;
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-time').innerText = `Current Time: ${now.toLocaleString()}`;
         }
 
-        const labels = data.map(row => row[0]); // Date & Time
-        const temperatures = data.map(row => row[1]); // Temperatures
-        const humidity = data.map(row => row[2]); // Humidity
+        setInterval(updateClock, 1000);
+        renderDashboard();
 
-        // Render Temperature and Humidity Charts
-        const tempCtx = document.getElementById('tempChart').getContext('2d');
-        createChart(tempCtx, labels, temperatures, 'Temperature (°C)', 'rgba(255, 99, 132)');
-
-        const humidityCtx = document.getElementById('humidityChart').getContext('2d');
-        createChart(humidityCtx, labels, humidity, 'Humidity (%)', 'rgba(54, 162, 235)');
-
-        // Render Data Table
-        const tableBody = document.getElementById('dataTable');
-        tableBody.innerHTML = data.map(row => `
-            <tr>
-                <td>${row[0]}</td>
-                <td>${row[1]}°C</td>
-                <td>${row[2]}%</td>
-            </tr>
-        `).join('');
-
-        // Calculate and Display Summary
-        const maxTemp = Math.max(...temperatures);
-        const minTemp = Math.min(...temperatures);
-        const avgHumidity = (humidity.reduce((sum, h) => sum + h, 0) / humidity.length).toFixed(2);
-
-        const summary = document.getElementById('summary');
-        summary.innerHTML = `
-            Maximum Temperature: <b>${maxTemp}°C</b><br>
-            Minimum Temperature: <b>${minTemp}°C</b><br>
-            Average Humidity: <b>${avgHumidity}%</b>
-        `;
-    }
-
-    function updateClock() {
-        const now = new Date();
-        document.getElementById('current-time').innerText = `Current Time: ${now.toLocaleString()}`;
-    }
-
-    setInterval(updateClock, 1000); // Update clock every second
-    renderDashboard();
+        document.getElementById('toggleTableButton').addEventListener('click', () => {
+            const dataSection = document.getElementById('data-section');
+            if (dataSection.style.display === 'none' || dataSection.style.display === '') {
+                dataSection.style.display = 'block';
+                document.getElementById('toggleTableButton').textContent = 'Hide Data Table';
+            } else {
+                dataSection.style.display = 'none';
+                document.getElementById('toggleTableButton').textContent = 'View Data Table';
+            }
+        });
     </script>
 </body>
 </html>
